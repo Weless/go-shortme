@@ -15,6 +15,7 @@ import (
 type App struct {
 	Router      *mux.Router
 	Middlewares *Middleware
+	Config      *Env
 }
 
 type shortenReq struct {
@@ -28,9 +29,10 @@ type shortLinkResp struct {
 
 // Initialize is initialization of app
 
-func (a *App) Initialize() {
+func (a *App) Initialize(e *Env) {
 	// set log for formatter
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	a.Config = e
 	a.Router = mux.NewRouter()
 	a.Middlewares = &Middleware{}
 	a.initializeRoutes()
@@ -60,7 +62,12 @@ func (a *App) createShortLink(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	fmt.Println("%v\n", req)
+	s, err := a.Config.S.Shorten(req.URL, req.ExpirationInMinutes)
+	if err != nil {
+		responseWithError(w, err)
+	} else {
+		responseWithJSON(w, http.StatusCreated, shortLinkResp{ShortLink: s})
+	}
 }
 
 func (a *App) getShortLinkInfo(w http.ResponseWriter, r *http.Request) {
